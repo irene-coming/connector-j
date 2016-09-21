@@ -1,8 +1,6 @@
 package com.demo.jdbc;
 
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import com.mysql.jdbc.Connection;
@@ -10,9 +8,8 @@ import com.mysql.jdbc.Connection;
 public class JDBCConn {
 	String errMsg = null;
 	Connection connection = null;
-	ResultSet resultSet = null;
+	Boolean isDDL = null;
 	java.sql.Statement stmt = null;
-	PreparedStatement preparedStatement = null;
 
 
 	public JDBCConn(String host, String user, String password, String db, int port){
@@ -25,40 +22,26 @@ public class JDBCConn {
 		}
 	}
 	
-	public ResultSet execute(String sql){
+	public Boolean execute(String sql){
 		errMsg = null;
-		if(resultSet!=null){
-			try{
-				resultSet.close();
-			}catch (SQLException e){
-				e.printStackTrace();
-			}
-		}
 		try{
 			stmt = connection.createStatement();
-			
-			preparedStatement = connection.prepareStatement(sql);
-			
-			resultSet = preparedStatement.executeQuery();
-		}catch(Exception e){
-			System.out.println("errrrrrrr");
-			e.printStackTrace();
+			isDDL = stmt.execute(sql);
+		}catch(SQLException e){
 			errMsg = e.getMessage();
+		    System.out.println("SQLException: " + errMsg);
+		    System.out.println("SQLState: " + e.getSQLState());
+		    System.out.println("VendorError: " + e.getErrorCode());
+		    
+//		    e.printStackTrace();
 		}
-		return resultSet;
+		return isDDL;
 	}
 	
 	public void close(){
-		if(resultSet!=null){
+		if(stmt!=null){
 			try{
-				resultSet.close();
-			}catch (SQLException e){
-				e.printStackTrace();
-			}
-		}
-		if(preparedStatement!=null){
-			try{
-				preparedStatement.close();
+				stmt.close();
 			}catch (SQLException e){
 				e.printStackTrace();
 			}

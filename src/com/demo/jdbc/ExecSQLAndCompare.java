@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +53,9 @@ public class ExecSQLAndCompare {
 		Boolean is_multiline = false;
 		Boolean toClose = true;
 
-		File file = new File(_sqlFile);
+		String full_path = Config.getSqlPath() + _sqlFile;
+		System.out.println(full_path);
+		File file = new File(full_path);
 		BufferedReader reader = null;
 		try {
 			reader = new BufferedReader(new FileReader(file));
@@ -62,9 +63,8 @@ public class ExecSQLAndCompare {
 			String nextLine = reader.readLine().trim();
 			String line = nextLine;
 			while (nextLine != null) {
-				line = nextLine;
-				tempString = reader.readLine();
-				nextLine = tempString.trim();
+				line = nextLine.trim();
+				nextLine = reader.readLine();
 
 				line_nu += 1;
 				if (line.startsWith("#")) {
@@ -95,8 +95,8 @@ public class ExecSQLAndCompare {
 							_cur_conn_uproxy = share_conns_uproxy.get(uproxy_conn_name);
 						} else {
 							check_destroy_old_conn();
-							_cur_conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER, Config.TEST_USER_PASSWD,
-									Config.TEST_DB, Config.UPROXY_PORT);
+							_cur_conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER,
+									Config.TEST_USER_PASSWD, Config.TEST_DB, Config.UPROXY_PORT);
 							_cur_conn_mysql = new JDBCConn(Config.Host_Single_MySQL, Config.TEST_USER,
 									Config.TEST_USER_PASSWD, Config.TEST_DB, Config.MYSQL_PORT);
 							System.out.println("open a pair of new conntions to exec sql");
@@ -163,7 +163,8 @@ public class ExecSQLAndCompare {
 		String start_cmd = Config.MYSQL_INSTALL_PATH + "/support-files/mysql.server start" + options;
 
 		for (int i = 0; i < Config.mysql_hosts.length; ++i) {
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.mysql_hosts[i], Config.SSH_USER, Config.SSH_PASSWORD);
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.mysql_hosts[i], Config.SSH_USER,
+					Config.SSH_PASSWORD);
 			sshExecutor.execute(stop_cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -172,7 +173,8 @@ public class ExecSQLAndCompare {
 			}
 		}
 		for (int i = 0; i < Config.mysql_hosts.length; ++i) {
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.mysql_hosts[i], Config.SSH_USER, Config.SSH_PASSWORD);
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.mysql_hosts[i], Config.SSH_USER,
+					Config.SSH_PASSWORD);
 			sshExecutor.execute(start_cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -185,12 +187,16 @@ public class ExecSQLAndCompare {
 	private void updateConns() {
 		String precmd = Config.getUproxyAdminCmd();
 
-		String cmd1 = precmd + "uproxy update_conns '"+ Config.TEST_USER  +"' masters '"+ Config.Host_Master+":"+Config.MYSQL_PORT  +"'\"";
-		String cmd2 = precmd + "uproxy update_conns '"+ Config.TEST_USER  +"' slaves '"+ Config.Host_Slave1+":"+Config.MYSQL_PORT  +"'\"";
-		String cmd3 = precmd + "uproxy update_conns '"+ Config.TEST_USER  +"' slaves '"+ Config.Host_Slave2+":"+Config.MYSQL_PORT  +"'\"";
-		
-		SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER, Config.SSH_PASSWORD);
-		
+		String cmd1 = precmd + "uproxy update_conns '" + Config.TEST_USER + "' masters '" + Config.Host_Master + ":"
+				+ Config.MYSQL_PORT + "'\"";
+		String cmd2 = precmd + "uproxy update_conns '" + Config.TEST_USER + "' slaves '" + Config.Host_Slave1 + ":"
+				+ Config.MYSQL_PORT + "'\"";
+		String cmd3 = precmd + "uproxy update_conns '" + Config.TEST_USER + "' slaves '" + Config.Host_Slave2 + ":"
+				+ Config.MYSQL_PORT + "'\"";
+
+		SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER,
+				Config.SSH_PASSWORD);
+
 		sshExecutor.execute(cmd1);
 		sshExecutor.execute(cmd2);
 		sshExecutor.execute(cmd3);
@@ -198,7 +204,7 @@ public class ExecSQLAndCompare {
 
 	private void reconnectUproxy() {
 		JDBCConn conn_uproxy = null;
-		int max_try = 5, interval=30;
+		int max_try = 5, interval = 30;
 		Boolean success = false;
 		while (max_try > 0) {
 			Config.sleep(interval);
@@ -209,10 +215,10 @@ public class ExecSQLAndCompare {
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
-				if (success){
+				if (success) {
 					break;
-				}else{
-					max_try--;					
+				} else {
+					max_try--;
 				}
 				if (conn_uproxy != null) {
 					conn_uproxy.close();
@@ -222,7 +228,7 @@ public class ExecSQLAndCompare {
 		}
 
 		if (!success)
-			System.out.println("can not connect to uproxy after "+max_try*interval+" seconds wait");
+			System.out.println("can not connect to uproxy after " + max_try * interval + " seconds wait");
 	}
 
 	private void restartUproxy(String options) {
@@ -235,9 +241,10 @@ public class ExecSQLAndCompare {
 		}
 
 		if (opt_dic.containsKey("default_bconn_limit")) {
-			String cmd = "sed -i '/default_bconn_limit/s/[0-9][0-9]*/" + opt_dic.get("default_bconn_limit")
-					+ "/' "+Config.UPROXY_INSTALL_PATH+"/uproxy.json";
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER, Config.SSH_PASSWORD);
+			String cmd = "sed -i '/default_bconn_limit/s/[0-9][0-9]*/" + opt_dic.get("default_bconn_limit") + "/' "
+					+ Config.UPROXY_INSTALL_PATH + "/uproxy.json";
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER,
+					Config.SSH_PASSWORD);
 			sshExecutor.execute(cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -246,8 +253,10 @@ public class ExecSQLAndCompare {
 			}
 		}
 		if (opt_dic.containsKey("smp")) {
-			String cmd = "sed -i '/\"smp\":/s/[0-9]/" + opt_dic.get("smp") + "/' "+Config.UPROXY_INSTALL_PATH+"/uproxy.json";
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER, Config.SSH_PASSWORD);
+			String cmd = "sed -i '/\"smp\":/s/[0-9]/" + opt_dic.get("smp") + "/' " + Config.UPROXY_INSTALL_PATH
+					+ "/uproxy.json";
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER,
+					Config.SSH_PASSWORD);
 			sshExecutor.execute(cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -283,10 +292,25 @@ public class ExecSQLAndCompare {
 				}
 			}
 
-			ResultSet result_mysql = _cur_conn_mysql.execute(sql);
-			String err_mysql = _cur_conn_mysql.errMsg;
+			Boolean isR = _cur_conn_mysql.execute(sql);
+			_cur_conn_uproxy.execute(sql);
 
-			ResultSet result_uproxy = _cur_conn_uproxy.execute(sql);
+			Object result_mysql = null, result_uproxy = null;
+			if (null != isR) {
+				try {
+					if (isR) {
+						result_mysql = _cur_conn_mysql.stmt.getResultSet();
+						result_mysql = _cur_conn_uproxy.stmt.getResultSet();
+					} else {
+						result_mysql = _cur_conn_mysql.stmt.getUpdateCount();
+						result_uproxy = _cur_conn_uproxy.stmt.getUpdateCount();
+					}
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+
+			String err_mysql = _cur_conn_mysql.errMsg;
 			String err_uproxy = _cur_conn_uproxy.errMsg;
 
 			if (reset_autocommit) {
@@ -308,7 +332,7 @@ public class ExecSQLAndCompare {
 		}
 	}
 
-	private void compare_result(int id, String sql, ResultSet mysql_result, ResultSet uproxy_result, String mysql_err,
+	private void compare_result(int id, String sql, Object mysql_result, Object uproxy_result, String mysql_err,
 			String uproxy_err) {
 		System.out.println("line:" + id + "  sql:[" + sql + "]");
 		Boolean isResultSame = uproxy_result == mysql_result;
@@ -316,8 +340,8 @@ public class ExecSQLAndCompare {
 
 		if (isResultSame) {
 			if (mysql_err != null || uproxy_err != null) {
-				Boolean isMysqlSynErr = mysql_err.contains("You have an error in your SQL syntax");
-				Boolean isUproxySynErr = uproxy_err.contains("Syntax error or unsupported sql by uproxy");
+				Boolean isMysqlSynErr = null != mysql_err && mysql_err.contains("You have an error in your SQL syntax");
+				Boolean isUproxySynErr = null != uproxy_err && uproxy_err.contains("Syntax error or unsupported sql by uproxy");
 				if (mysql_err == uproxy_err || (isMysqlSynErr && isUproxySynErr)) {
 					File file = new File(warn_log);
 					BufferedWriter writer = null;

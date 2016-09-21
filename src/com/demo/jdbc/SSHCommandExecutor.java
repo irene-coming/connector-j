@@ -40,6 +40,11 @@ public class SSHCommandExecutor {
         try {
             // Create and connect session.
             Session session = jsch.getSession(username, ipAddress, DEFAULT_SSH_PORT);
+
+			java.util.Properties config = new java.util.Properties();
+			config.put("StrictHostKeyChecking", "no");
+			session.setConfig(config);
+			
             session.setPassword(password);
             session.setUserInfo(userInfo);
             session.connect();

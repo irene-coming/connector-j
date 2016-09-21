@@ -25,14 +25,15 @@ public class Config {
 	
 	public static String MYSQL_INSTALL_PATH = "/usr/local/mysql";
 	public static String UPROXY_INSTALL_PATH = "/usr/local/uproxy";
+	public static String ROOT_PATH = "/share_dir";
 	
 	public Config() {
 		// TODO Auto-generated constructor stub
 	}
 	
 	public static String getUproxyAdminCmd(){
-		String cmd = Config.MYSQL_INSTALL_PATH + " -u"+Config.UPROXY_ADMIN+" -p"+Config.UPROXY_ADMIN+" -h127.0.0.1 -P" + Config.UPROXY_PORT
-				+ "-e \"";
+		String cmd = Config.MYSQL_INSTALL_PATH + "/bin/mysql -u"+Config.UPROXY_ADMIN+" -p"+Config.UPROXY_ADMIN_PASSWD+" -h127.0.0.1 -P" + Config.UPROXY_PORT
+				+ " -e \"";
 		return cmd;
 	}
 	
@@ -49,6 +50,9 @@ public class Config {
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_H:m:s");
 		String log_name = format.format(new Date());
 		return log_name;
+	}
+	public static String getSqlPath(){
+		return ROOT_PATH + "/sqls/";
 	}
 
 }

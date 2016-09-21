@@ -12,7 +12,6 @@ public class Setup {
 
 	private static Setup instance = null;
 	private Setup() {
-
 		// TODO Auto-generated constructor stub
 	}
 	

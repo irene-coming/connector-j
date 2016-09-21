@@ -6,6 +6,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -270,104 +272,140 @@ public class ExecSQLAndCompare {
 
 	private void do_query(int line_nu, String sql, Boolean toClose) {
 		sql = sql.trim();
-		if (sql.length() > 0) {
-			if (toClose)
-				check_destroy_old_conn();
+		if (sql.length() == 0)
+			return;
+		if (toClose)
+			check_destroy_old_conn();
 
-			if (_cur_conn_uproxy == null)
-				_cur_conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER, Config.TEST_USER_PASSWD,
-						Config.TEST_DB, Config.UPROXY_PORT);
+		if (_cur_conn_uproxy == null) {
+			_cur_conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER, Config.TEST_USER_PASSWD,
+					Config.TEST_DB, Config.UPROXY_PORT);
 			_cur_conn_mysql = new JDBCConn(Config.Host_Single_MySQL, Config.TEST_USER, Config.TEST_USER_PASSWD,
 					Config.TEST_DB, Config.MYSQL_PORT);
+		}
 
-			Boolean reset_autocommit = false;
-			if (sql.endsWith("#!autocommit=False")) {
-				reset_autocommit = true;
-				sql = sql.replace("#!autocommit=False", "").trim();
-				try {
-					_cur_conn_mysql.connection.setAutoCommit(false);
-					_cur_conn_uproxy.connection.setAutoCommit(false);
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-			}
-
-			Boolean isR = _cur_conn_mysql.execute(sql);
-			_cur_conn_uproxy.execute(sql);
-
-			Object result_mysql = null, result_uproxy = null;
-			if (null != isR) {
-				try {
-					if (isR) {
-						result_mysql = _cur_conn_mysql.stmt.getResultSet();
-						result_mysql = _cur_conn_uproxy.stmt.getResultSet();
-					} else {
-						result_mysql = _cur_conn_mysql.stmt.getUpdateCount();
-						result_uproxy = _cur_conn_uproxy.stmt.getUpdateCount();
-					}
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-			}
-
-			String err_mysql = _cur_conn_mysql.errMsg;
-			String err_uproxy = _cur_conn_uproxy.errMsg;
-
-			if (reset_autocommit) {
-				try {
-					_cur_conn_mysql.connection.setAutoCommit(true);
-					_cur_conn_uproxy.connection.setAutoCommit(true);
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-			}
-
-			compare_result(line_nu, sql, result_mysql, result_uproxy, err_mysql, err_uproxy);
-			if (toClose) {
-				_cur_conn_mysql.close();
-				_cur_conn_uproxy.close();
-				_cur_conn_mysql = null;
-				_cur_conn_uproxy = null;
+		Boolean reset_autocommit = false;
+		if (sql.endsWith("#!autocommit=False")) {
+			reset_autocommit = true;
+			sql = sql.replace("#!autocommit=False", "").trim();
+			try {
+				_cur_conn_mysql.connection.setAutoCommit(false);
+				_cur_conn_uproxy.connection.setAutoCommit(false);
+			} catch (SQLException e) {
+				e.printStackTrace();
 			}
 		}
+
+		Boolean isR = _cur_conn_mysql.execute(sql);
+		_cur_conn_uproxy.execute(sql);
+
+		Object result_mysql = null, result_uproxy = null;
+		if (null != isR) {
+			try {
+				if (isR) {
+					result_mysql = _cur_conn_mysql.stmt.getResultSet();
+					result_mysql = _cur_conn_uproxy.stmt.getResultSet();
+				} else {
+					result_mysql = _cur_conn_mysql.stmt.getUpdateCount();
+					result_uproxy = _cur_conn_uproxy.stmt.getUpdateCount();
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		String err_mysql = _cur_conn_mysql.errMsg;
+		String err_uproxy = _cur_conn_uproxy.errMsg;
+
+		if (reset_autocommit) {
+			try {
+				_cur_conn_mysql.connection.setAutoCommit(true);
+				_cur_conn_uproxy.connection.setAutoCommit(true);
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		compare_result(line_nu, sql, result_mysql, result_uproxy, err_mysql, err_uproxy);
+		if (toClose) {
+			_cur_conn_mysql.close();
+			_cur_conn_uproxy.close();
+			_cur_conn_mysql = null;
+			_cur_conn_uproxy = null;
+		}
+	}
+
+	private boolean equal(Object set1, Object set2) {
+		if (set1 instanceof ResultSet) {
+			return equal((ResultSet) set1, (ResultSet) set2);
+		}
+		boolean b = set1 == set2;
+		if (!b) {
+			System.err.println("update rows count is not equal:[" + set1 + "," + set2 + "]");
+		}
+		return b;
+	}
+
+	private boolean equal(ResultSet set1, ResultSet set2) {
+		try {
+			ResultSetMetaData metaData1 = set1.getMetaData();
+			ResultSetMetaData metaData2 = set2.getMetaData();
+			int columnCount2 = metaData2.getColumnCount();
+			int columnCount1 = metaData1.getColumnCount();
+			if (columnCount1 != columnCount2) {
+				System.err.println("column count is not equal[" + columnCount1 + "," + columnCount2 + "]");
+				return false;
+			}
+			boolean line2 = set2.next();
+			boolean line1 = set1.next();
+			while (line1 && line2) {
+				for (int i = 0; i < columnCount1; i++) {
+					String value1 = set1.getString(i);
+					String value2 = set2.getString(i);
+					if (value1 == null && value2 == null) {
+						continue;
+					}
+					if (value1 == null || value2 == null) {
+						System.err.println("value is not null,[" + value1 + "," + value2 + "]");
+						return false;
+					}
+					if (!value1.equals(value2)) {
+						System.err.println("value is not null,[" + value1 + "," + value2 + "]");
+						return false;
+					}
+				}
+			}
+			if (line1 != line2) {
+				System.err.println("rows count is not equal");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return false;
+		}
+		return true;
 	}
 
 	private void compare_result(int id, String sql, Object mysql_result, Object uproxy_result, String mysql_err,
 			String uproxy_err) {
 		System.out.println("line:" + id + "  sql:[" + sql + "]");
-		Boolean isResultSame = uproxy_result == mysql_result;
+		Boolean isResultSame = equal(uproxy_result, mysql_result);
 		String uproxy_re = "uproxy:[" + uproxy_result + "]\n";
 
 		if (isResultSame) {
 			if (mysql_err != null || uproxy_err != null) {
 				Boolean isMysqlSynErr = null != mysql_err && mysql_err.contains("You have an error in your SQL syntax");
-				Boolean isUproxySynErr = null != uproxy_err && uproxy_err.contains("Syntax error or unsupported sql by uproxy");
+				Boolean isUproxySynErr = null != uproxy_err
+						&& uproxy_err.contains("Syntax error or unsupported sql by uproxy");
+				MyWriter writer = null;
 				if (mysql_err == uproxy_err || (isMysqlSynErr && isUproxySynErr)) {
-					File file = new File(warn_log);
-					BufferedWriter writer = null;
-					try {
-						writer = new BufferedWriter(new FileWriter(file));
-						writer.write("===id:" + id + ", sql:[" + sql + "]===\n");
-						writer.write("mysql err:" + mysql_err + "\n");
-						writer.write("mysql err:" + uproxy_err + "\n");
-					} catch (IOException e) {
-						e.printStackTrace();
-					} finally {
-						if (writer != null) {
-							try {
-								writer.close();
-							} catch (IOException e1) {
-								e1.printStackTrace();
-							}
-						}
-					}
+					writer = new MyWriter(warn_log);
 				} else {
-					MyWriter writer = new MyWriter(serious_warn_log);
-					writer.write("===id:" + id + ", sql:[" + sql + "]===\n");
-					writer.write("mysql err:" + mysql_err + "\n");
-					writer.write("mysql err:" + uproxy_err + "\n");
-					writer.close();
+					writer = new MyWriter(serious_warn_log);
 				}
+				writer.write("===id:" + id + ", sql:[" + sql + "]===\n");
+				writer.write("mysql err:" + mysql_err + "\n");
+				writer.write("mysql err:" + uproxy_err + "\n");
+				writer.close();
 			} else {
 				MyWriter writer = new MyWriter(pass_log);
 				writer.write("===id:" + id + ", sql:[" + sql + "]===\n");

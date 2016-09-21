@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Vector;
 
 public class Setup {
@@ -23,10 +25,8 @@ public class Setup {
 		return instance;
 	}
 
-	public String[] getSqlFiles(String fileName) {
-		String[] sqlFiles = new String[20];
-		int sqlFilesNum = 0;
-
+	public List<String> getSqlFiles(String fileName) {
+		ArrayList<String> sqlFiles = new ArrayList<>();
 		File file = new File(fileName);
 		BufferedReader reader = null;
 		try {
@@ -35,8 +35,7 @@ public class Setup {
 			while ((tempString = reader.readLine()) != null) {
 				String sqlFile = tempString.trim();
 				if (sqlFile.length() > 0) {
-					sqlFiles[sqlFilesNum] = sqlFile;
-					sqlFilesNum++;
+					sqlFiles.add(sqlFile);
 				}
 			}
 			reader.close();

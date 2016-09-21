@@ -25,7 +25,7 @@ public class JDBCConn {
 		}
 	}
 	
-	public ResultSet executeQuery(String sql){
+	public ResultSet execute(String sql){
 		errMsg = null;
 		if(resultSet!=null){
 			try{
@@ -36,15 +36,14 @@ public class JDBCConn {
 		}
 		try{
 			stmt = connection.createStatement();
+			
 			preparedStatement = connection.prepareStatement(sql);
+			
 			resultSet = preparedStatement.executeQuery();
 		}catch(Exception e){
 			System.out.println("errrrrrrr");
 			e.printStackTrace();
 			errMsg = e.getMessage();
-		}finally{
-
-
 		}
 		return resultSet;
 	}

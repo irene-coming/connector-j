@@ -23,13 +23,11 @@ public class ExecSQLAndCompare {
 	String FAIL_PRE = "fail_";
 	String WARN_PRE = "warn_";
 	String SERIOUS_PRE = "serious_warn_";
-	String BALANCE_PRE = "balance_";
 
 	String pass_log;
 	String fail_log;
 	String warn_log;
 	String serious_warn_log;
-	String balance_log;
 
 	private String _sqlFile;
 
@@ -44,16 +42,10 @@ public class ExecSQLAndCompare {
 	}
 
 	private void initData() {
-		Map<String, String> balance = new HashMap<String, String>();
-		balance.put("slaves_total", "0");
-		balance.put("slave1", "0");
-		balance.put("slave2", "0");
-
 		pass_log = PASS_PRE + _sqlFile;
 		fail_log = FAIL_PRE + _sqlFile;
 		warn_log = WARN_PRE + _sqlFile;
 		serious_warn_log = SERIOUS_PRE + _sqlFile;
-		balance_log = BALANCE_PRE + _sqlFile;
 	}
 
 	public void analyzeSql() {
@@ -90,10 +82,10 @@ public class ExecSQLAndCompare {
 							String uproxy_conn_name = m.group(1);
 							String mysql_conn_name = uproxy_conn_name + "_mysql";
 							if (!share_conns_uproxy.containsKey(uproxy_conn_name)) {
-								JDBCConn conn_uproxy = new JDBCConn(Setup.Host_Uproxy, Setup.TEST_USER,
-										Setup.TEST_USER_PASSWD, Setup.TEST_DB, Setup.UPROXY_PORT);
-								JDBCConn conn_mysql = new JDBCConn(Setup.Host_Single_MySQL, Setup.TEST_USER,
-										Setup.TEST_USER_PASSWD, Setup.TEST_DB, Setup.MYSQL_PORT);
+								JDBCConn conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER,
+										Config.TEST_USER_PASSWD, Config.TEST_DB, Config.UPROXY_PORT);
+								JDBCConn conn_mysql = new JDBCConn(Config.Host_Single_MySQL, Config.TEST_USER,
+										Config.TEST_USER_PASSWD, Config.TEST_DB, Config.MYSQL_PORT);
 
 								share_conns_uproxy.put(uproxy_conn_name, conn_uproxy);
 								share_conns_mysql.put(mysql_conn_name, conn_mysql);
@@ -103,10 +95,10 @@ public class ExecSQLAndCompare {
 							_cur_conn_uproxy = share_conns_uproxy.get(uproxy_conn_name);
 						} else {
 							check_destroy_old_conn();
-							_cur_conn_uproxy = new JDBCConn(Setup.Host_Uproxy, Setup.TEST_USER, Setup.TEST_USER_PASSWD,
-									Setup.TEST_DB, Setup.UPROXY_PORT);
-							_cur_conn_mysql = new JDBCConn(Setup.Host_Single_MySQL, Setup.TEST_USER,
-									Setup.TEST_USER_PASSWD, Setup.TEST_DB, Setup.MYSQL_PORT);
+							_cur_conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER, Config.TEST_USER_PASSWD,
+									Config.TEST_DB, Config.UPROXY_PORT);
+							_cur_conn_mysql = new JDBCConn(Config.Host_Single_MySQL, Config.TEST_USER,
+									Config.TEST_USER_PASSWD, Config.TEST_DB, Config.MYSQL_PORT);
 							System.out.println("open a pair of new conntions to exec sql");
 						}
 					} else if (line.startsWith("#!restart-mysql")) {
@@ -167,11 +159,11 @@ public class ExecSQLAndCompare {
 	}
 
 	private void restartMysql(String options) {
-		String stop_cmd = "/usr/local/mysql/support-files/mysql.server stop";
-		String start_cmd = "/usr/local/mysql/support-files/mysql.server start" + options;
+		String stop_cmd = Config.MYSQL_INSTALL_PATH + "/support-files/mysql.server stop";
+		String start_cmd = Config.MYSQL_INSTALL_PATH + "/support-files/mysql.server start" + options;
 
-		for (int i = 0; i < Setup.mysql_hosts.length; ++i) {
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Setup.mysql_hosts[i], "root", "sshpass");
+		for (int i = 0; i < Config.mysql_hosts.length; ++i) {
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.mysql_hosts[i], Config.SSH_USER, Config.SSH_PASSWORD);
 			sshExecutor.execute(stop_cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -179,8 +171,8 @@ public class ExecSQLAndCompare {
 				System.out.println(str);
 			}
 		}
-		for (int i = 0; i < Setup.mysql_hosts.length; ++i) {
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Setup.mysql_hosts[i], "root", "sshpass");
+		for (int i = 0; i < Config.mysql_hosts.length; ++i) {
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.mysql_hosts[i], Config.SSH_USER, Config.SSH_PASSWORD);
 			sshExecutor.execute(start_cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -191,58 +183,46 @@ public class ExecSQLAndCompare {
 	}
 
 	private void updateConns() {
-		String cmd1 = "/usr/local/mysql -uadmin -ppassword -h127.0.0.1 -P" + Setup.UPROXY_PORT
-				+ "-e \"uproxy update_conns 'user1' masters '172.100.7.4:3306'\"";
-		String cmd2 = "/usr/local/mysql -uadmin -ppassword -h127.0.0.1 -P" + Setup.UPROXY_PORT
-				+ "-e \"uproxy update_conns 'user1' slaves '172.100.7.5:3306'\"";
-		String cmd3 = "/usr/local/mysql -uadmin -ppassword -h127.0.0.1 -P" + Setup.UPROXY_PORT
-				+ "-e \"uproxy update_conns 'user1' slaves '172.100.7.6:3306'\"";
-		SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Setup.Host_Uproxy, "root", "sshpass");
+		String precmd = Config.getUproxyAdminCmd();
+
+		String cmd1 = precmd + "uproxy update_conns '"+ Config.TEST_USER  +"' masters '"+ Config.Host_Master+":"+Config.MYSQL_PORT  +"'\"";
+		String cmd2 = precmd + "uproxy update_conns '"+ Config.TEST_USER  +"' slaves '"+ Config.Host_Slave1+":"+Config.MYSQL_PORT  +"'\"";
+		String cmd3 = precmd + "uproxy update_conns '"+ Config.TEST_USER  +"' slaves '"+ Config.Host_Slave2+":"+Config.MYSQL_PORT  +"'\"";
+		
+		SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER, Config.SSH_PASSWORD);
+		
 		sshExecutor.execute(cmd1);
-
-		Vector<String> stdout = sshExecutor.getStandardOutput();
-		for (String str : stdout) {
-			System.out.println(str);
-		}
 		sshExecutor.execute(cmd2);
-
-		stdout = sshExecutor.getStandardOutput();
-		for (String str : stdout) {
-			System.out.println(str);
-		}
 		sshExecutor.execute(cmd3);
-
-		stdout = sshExecutor.getStandardOutput();
-		for (String str : stdout) {
-			System.out.println(str);
-		}
 	}
 
 	private void reconnectUproxy() {
 		JDBCConn conn_uproxy = null;
-		int max_try = 5;
+		int max_try = 5, interval=30;
+		Boolean success = false;
 		while (max_try > 0) {
+			Config.sleep(interval);
 			try {
-				Thread.sleep(30000);
-				System.out.print("thread sleep 5 sec! \n");
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			try {
-				conn_uproxy = new JDBCConn(Setup.Host_Uproxy, Setup.TEST_USER, Setup.TEST_USER_PASSWD, "",
-						Setup.UPROXY_PORT);
-				break;
+				conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER, Config.TEST_USER_PASSWD, "",
+						Config.UPROXY_PORT);
+				success = true;
 			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				if (success){
+					break;
+				}else{
+					max_try--;					
+				}
 				if (conn_uproxy != null) {
 					conn_uproxy.close();
 					conn_uproxy = null;
 				}
-			} finally {
-				max_try--;
 			}
 		}
 
-		System.out.println("can not connect to uproxy after 30*5 sec wait");
+		if (!success)
+			System.out.println("can not connect to uproxy after "+max_try*interval+" seconds wait");
 	}
 
 	private void restartUproxy(String options) {
@@ -256,8 +236,8 @@ public class ExecSQLAndCompare {
 
 		if (opt_dic.containsKey("default_bconn_limit")) {
 			String cmd = "sed -i '/default_bconn_limit/s/[0-9][0-9]*/" + opt_dic.get("default_bconn_limit")
-					+ "/' /usr/local/uproxy/uproxy.json";
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Setup.Host_Uproxy, "root", "sshpass");
+					+ "/' "+Config.UPROXY_INSTALL_PATH+"/uproxy.json";
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER, Config.SSH_PASSWORD);
 			sshExecutor.execute(cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -266,8 +246,8 @@ public class ExecSQLAndCompare {
 			}
 		}
 		if (opt_dic.containsKey("smp")) {
-			String cmd = "sed -i '/\"smp\":/s/[0-9]/" + opt_dic.get("smp") + "/' /usr/local/uproxy/uproxy.json";
-			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Setup.Host_Uproxy, "root", "sshpass");
+			String cmd = "sed -i '/\"smp\":/s/[0-9]/" + opt_dic.get("smp") + "/' "+Config.UPROXY_INSTALL_PATH+"/uproxy.json";
+			SSHCommandExecutor sshExecutor = new SSHCommandExecutor(Config.Host_Uproxy, Config.SSH_USER, Config.SSH_PASSWORD);
 			sshExecutor.execute(cmd);
 
 			Vector<String> stdout = sshExecutor.getStandardOutput();
@@ -286,10 +266,10 @@ public class ExecSQLAndCompare {
 				check_destroy_old_conn();
 
 			if (_cur_conn_uproxy == null)
-				_cur_conn_uproxy = new JDBCConn(Setup.Host_Uproxy, Setup.TEST_USER, Setup.TEST_USER_PASSWD,
-						Setup.TEST_DB, Setup.UPROXY_PORT);
-			_cur_conn_mysql = new JDBCConn(Setup.Host_Single_MySQL, Setup.TEST_USER, Setup.TEST_USER_PASSWD,
-					Setup.TEST_DB, Setup.MYSQL_PORT);
+				_cur_conn_uproxy = new JDBCConn(Config.Host_Uproxy, Config.TEST_USER, Config.TEST_USER_PASSWD,
+						Config.TEST_DB, Config.UPROXY_PORT);
+			_cur_conn_mysql = new JDBCConn(Config.Host_Single_MySQL, Config.TEST_USER, Config.TEST_USER_PASSWD,
+					Config.TEST_DB, Config.MYSQL_PORT);
 
 			Boolean reset_autocommit = false;
 			if (sql.endsWith("#!autocommit=False")) {
@@ -303,10 +283,10 @@ public class ExecSQLAndCompare {
 				}
 			}
 
-			ResultSet result_mysql = _cur_conn_mysql.executeQuery(sql);
+			ResultSet result_mysql = _cur_conn_mysql.execute(sql);
 			String err_mysql = _cur_conn_mysql.errMsg;
 
-			ResultSet result_uproxy = _cur_conn_uproxy.executeQuery(sql);
+			ResultSet result_uproxy = _cur_conn_uproxy.execute(sql);
 			String err_uproxy = _cur_conn_uproxy.errMsg;
 
 			if (reset_autocommit) {

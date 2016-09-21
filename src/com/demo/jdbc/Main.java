@@ -10,8 +10,8 @@ public class Main {
 	}
 
 	public static void main(String[] args) {
-		JDBCConn conn = new JDBCConn("127.0.0.1", "janey", "111111", "", 3306);
-		ResultSet re = conn.executeQuery("show databases");
+		JDBCConn conn = new JDBCConn("10.186.18.113", "user1", "111111", "", 7120);
+		ResultSet re = conn.execute("show databases");
 		try {
 			re.next();
 			System.out.println(re.getString(1));

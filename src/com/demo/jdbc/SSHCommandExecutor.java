@@ -59,6 +59,7 @@ public class SSHCommandExecutor {
             String line;
             while ((line = input.readLine()) != null) {
                 stdout.add(line);
+                System.out.println(line);
             }
             input.close();
 
